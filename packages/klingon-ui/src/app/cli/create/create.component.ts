@@ -4,6 +4,7 @@ import { Validators } from '@angular/forms';
 import { FormControl } from '@angular/forms';
 import { FormGroup } from '@angular/forms';
 import { Component, OnInit } from '@angular/core';
+import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-cli-create',
@@ -36,21 +37,27 @@ export class CliCreateComponent extends FlagsComponent implements OnInit {
     localStorage.setItem('ui.lastUsedRootDirectory', rootDir || '');
 
     this.isWorking = true;
-    this.cli
+    const command$ = this.cli
       .runNgCommand(
         `new ${this.form.value['app-name']} ${this.cli.serialize(
           this.form.value
         )} ${extra}`,
         rootDir
-      )
-      .subscribe(data => {
-        this.isWorking = false;
+      );
 
-        if (data.stderr) {
-          this.onStdErr.next(data.stderr);
-        } else {
-          this.onStdOut.next(data.stdout);
-        }
+    command$.subscribe(data => {
+      if (data.stderr) {
+        this.onStdErr.next(data.stderr);
+      } else {
+        this.onStdOut.next(data.stdout);
+      }
+    });
+
+    command$
+      .pipe(
+        filter(data => data.stdout && data.stdout.indexOf('Successfully initialized git') !== -1)
+      ).subscribe(data => {
+        this.isWorking = false;
       });
   }
 }
